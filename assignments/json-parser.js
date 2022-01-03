@@ -1,208 +1,172 @@
+#!/usr/bin/env node
+
 const nullParser = input => {
-  if (!input.startsWith('null')) return null;
-  return [null, input.slice(4).trim()];
+  if (!input.startsWith('null')) return null
+  return [null, input.slice(4).trim()]
 }
 
 const booleanParser = input => {
-  if(!input.startsWith('true') && !input.startsWith('false')) return null;
-  if(input.startsWith('true')) return [true, input.slice(4)];
-  return [false, input.slice(5).trim()];
+  if (!input.startsWith('true') && !input.startsWith('false')) return null
+  if (input.startsWith('true')) return [true, input.slice(4).trim()]
+  return [false, input.slice(5).trim()]
 }
 
 const colonParser = input => {
-  if(!input.startsWith(':')) return null;
-  return [':', input.slice(1).trim()];
+  if (!input.startsWith(':')) return null
+  return [':', input.slice(1).trim()]
 }
 
 const commaParser = input => {
-  if(!input.startsWith(',')) return null;
-  return [',', input.slice(1).trim()];
+  if (!input.startsWith(',')) return null
+  return [',', input.slice(1).trim()]
 }
 
 const stringParser = input => {
-  if(!input.startsWith('"')) return null;
-  let temp_str = '';
-  for(let char of input.slice(1)) {
-    if(char === '"') return [temp_str, input.slice(1 + temp_str.length + 1).trim()] ;
-    temp_str += char;
-  }
+  // const regex = /^ " ([^"\n\r\t\\\\]* | \\\\ ["\\\\bfnrt/] | \\\\ u [0-9a-f]{4} )* "/     SO/questions/2583472
+  const regex = /^\s*\"((\\([\"\\\/bfnrt]|u[a-fA-F0-9]{4})|[^"\\\0-\x1F\x7F]+)*)\"\s*/
+  const match = input.match(regex)
+  if (!match) return null
+  return [match[0].slice(1, match[0].length - 1), input.slice(match[0].length).trim()]
 }
 
 const numberParser = input => {
-  let regex = /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/;
-  let match = input.match(regex);
-  if(!match) return null;
-  return [parseFloat(match[0]), input.slice(match[0].length).trim()];
+  // const regex = /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/
+  const regex = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/    // regex for json numbers  SO/questions/13340717/
+  const match = input.match(regex)
+  if (!match) return null
+  return [parseFloat(match[0]), input.slice(match[0].length).trim()]
 }
 
 const objectParser = input => {
-  if(!input.startsWith('{')) return null;
+  if (!input.startsWith('{')) return null
 
-  let buffer, key, value, colon, comma, temp_object = {};
-  input = input.slice(1).trim();
+  let buffer; let key; let value; let colon; let comma; const temp_object = {}
+  input = input.slice(1).trim()
 
-  while (!input.startsWith('}')) {
-    buffer = stringParser(input);
-    if(buffer == null) return null;
-
-    [key, input] = buffer;
-
-    buffer = colonParser(input);
-    if(buffer == null) return null;
-
-    [colon, input] = buffer;
-
-    buffer = valueParser(input);
-    if(buffer == null) return null;
-
-    [value, input] = buffer;
-
-    temp_object[key] = value;
-
-    buffer = commaParser(input);
-    if(buffer == null) break;
-
-    [comma, input] = buffer;
+  if (input[0] == '}') {                      // handles empty object
+    return [temp_object, input.slice(1).trim()]
   }
-    return [temp_object, input.slice(1)];
+
+  while (input) {
+    buffer = stringParser(input)
+    if (buffer == null) return null;
+
+    [key, input] = buffer
+
+    buffer = colonParser(input)
+    if (buffer == null) return null;
+
+    [colon, input] = buffer
+
+    buffer = valueParser(input)
+    if (buffer == null) return null;
+
+    [value, input] = buffer
+
+    temp_object[key] = value
+
+    if (input[0] == '}') {
+      return [temp_object, input.slice(1).trim()]
+    }
+
+    buffer = commaParser(input)
+    if (buffer == null) {
+      return null
+    }
+
+    [comma, input] = buffer
+  }
 }
 
 const arrayParser = input => {
-  if(!input.startsWith('[')) return null;
+  if (!input.startsWith('[')) return null
 
-  let buffer, value, comma, temp_arr = [];
-  input = input.slice(1).trim();
+  let buffer; let value; let comma; const temp_arr = []
+  input = input.slice(1).trim()
 
-  while(!input.startsWith(']')) {
-
-    buffer = valueParser(input);
-    if(buffer == null) return null;
-
-    [value, input] = buffer;
-
-    temp_arr.push(value);
-
-    buffer = commaParser(input);
-    if(buffer == null) break;
-
-    [comma, input] = buffer;
+  if (input[0] == ']') {                      // handles empty array
+    return [temp_arr, input.slice(1).trim()]
   }
-  return [temp_arr, input.slice(1)];
-}
 
+  while (input) {
+
+    buffer = valueParser(input)
+    if (buffer == null) return null;
+
+    [value, input] = buffer
+
+    temp_arr.push(value)
+
+    if (input[0] == ']') {
+      return [temp_arr, input.slice(1).trim()]
+    }
+
+    buffer = commaParser(input)
+    if (buffer == null) {
+      return null
+    }
+
+    [comma, input] = buffer
+  }
+}
 
 const valueParser = input => {
-  let result;
 
-  if(result = nullParser(input)) return result;
-  if(result = booleanParser(input)) return result;
-  if(result = stringParser(input)) return result;
-  if(result = arrayParser(input)) return result;
-  if(result = numberParser(input)) return result;
-  if(result = objectParser(input)) return result;
-
-  return null;
+  return (nullParser(input) || booleanParser(input) || stringParser(input) || arrayParser(input) || numberParser(input) || objectParser(input))
 
 }
 
+const fs = require('fs')
 
-// console.log(valueParser('null'));
-// console.log(valueParser('"string"'));
-// console.log(valueParser('-123.223'));
-// console.log(valueParser('true'));
-// console.log(valueParser('false'));
-// console.log(valueParser('[false]'));
-// console.log(valueParser('["hello"]'));
-//console.log(valueParser('[true, "hello"]'));
-// console.log(objectParser('{"hello":"world"}'));
-let json = `{"web-app": {
-  "servlet": [
-    {
-      "servlet-name": "cofaxCDS",
-      "servlet-class": "org.cofax.cds.CDSServlet",
-      "init-param": {
-        "configGlossary:installationAt": "Philadelphia, PA",
-        "configGlossary:adminEmail": "ksm@pobox.com",
-        "configGlossary:poweredBy": "Cofax",
-        "configGlossary:poweredByIcon": "/images/cofax.gif",
-        "configGlossary:staticPath": "/content/static",
-        "templateProcessorClass": "org.cofax.WysiwygTemplate",
-        "templateLoaderClass": "org.cofax.FilesTemplateLoader",
-        "templatePath": "templates",
-        "templateOverridePath": "",
-        "defaultListTemplate": "listTemplate.htm",
-        "defaultFileTemplate": "articleTemplate.htm",
-        "useJSP": false,
-        "jspListTemplate": "listTemplate.jsp",
-        "jspFileTemplate": "articleTemplate.jsp",
-        "cachePackageTagsTrack": 200,
-        "cachePackageTagsStore": 200,
-        "cachePackageTagsRefresh": 60,
-        "cacheTemplatesTrack": 100,
-        "cacheTemplatesStore": 50,
-        "cacheTemplatesRefresh": 15,
-        "cachePagesTrack": 200,
-        "cachePagesStore": 100,
-        "cachePagesRefresh": 10,
-        "cachePagesDirtyRead": 10,
-        "searchEngineListTemplate": "forSearchEnginesList.htm",
-        "searchEngineFileTemplate": "forSearchEngines.htm",
-        "searchEngineRobotsDb": "WEB-INF/robots.db",
-        "useDataStore": true,
-        "dataStoreClass": "org.cofax.SqlDataStore",
-        "redirectionClass": "org.cofax.SqlRedirection",
-        "dataStoreName": "cofax",
-        "dataStoreDriver": "com.microsoft.jdbc.sqlserver.SQLServerDriver",
-        "dataStoreUrl": "jdbc:microsoft:sqlserver://LOCALHOST:1433;DatabaseName=goon",
-        "dataStoreUser": "sa",
-        "dataStorePassword": "dataStoreTestQuery",
-        "dataStoreTestQuery": "SET NOCOUNT ON;select test='test';",
-        "dataStoreLogFile": "/usr/local/tomcat/logs/datastore.log",
-        "dataStoreInitConns": 10,
-        "dataStoreMaxConns": 100,
-        "dataStoreConnUsageLimit": 100,
-        "dataStoreLogLevel": "debug",
-        "maxUrlLength": 500}},
-    {
-      "servlet-name": "cofaxEmail",
-      "servlet-class": "org.cofax.cds.EmailServlet",
-      "init-param": {
-      "mailHost": "mail1",
-      "mailHostOverride": "mail2"}},
-    {
-      "servlet-name": "cofaxAdmin",
-      "servlet-class": "org.cofax.cds.AdminServlet"},
+function execFile(jsonFile) {
+  fs.readFile(jsonFile, 'utf-8', function(err, data) {
+    if (err) {
+      return console.log(err)
+    }
 
-    {
-      "servlet-name": "fileServlet",
-      "servlet-class": "org.cofax.cds.FileServlet"},
-    {
-      "servlet-name": "cofaxTools",
-      "servlet-class": "org.cofax.cms.CofaxToolsServlet",
-      "init-param": {
-        "templatePath": "toolstemplates/",
-        "log": 1,
-        "logLocation": "/usr/local/tomcat/logs/CofaxTools.log",
-        "logMaxSize": "",
-        "dataLog": 1,
-        "dataLogLocation": "/usr/local/tomcat/logs/dataLog.log",
-        "dataLogMaxSize": "",
-        "removePageCache": "/content/admin/remove?cache=pages&id=",
-        "removeTemplateCache": "/content/admin/remove?cache=templates&id=",
-        "fileTransferFolder": "/usr/local/tomcat/webapps/content/fileTransferFolder",
-        "lookInContext": 1,
-        "adminGroupID": 4,
-        "betaServer": true}}],
-  "servlet-mapping": {
-    "cofaxCDS": "/",
-    "cofaxEmail": "/cofaxutil/aemail/*",
-    "cofaxAdmin": "/admin/*",
-    "fileServlet": "/static/*",
-    "cofaxTools": "/tools/*"},
+    let valid = true
 
-  "taglib": {
-    "taglib-uri": "cofax.tld",
-    "taglib-location": "/WEB-INF/tlds/cofax.tld"}}}
-`
+    let result; let input; let buffer
 
-   console.log(JSON.stringify(valueParser(json)[0], null, 2));
+    try {
+      buffer = valueParser(data);
+      [result, input] = buffer
+      console.log(buffer, '|', result, '|', input)
+
+      if (input) valid = false
+      if (typeof result !== 'object') valid = false
+
+    } catch (error) {
+      console.log(error)
+      valid = false
+    }
+
+    if (valid) {
+      console.log('PASS', jsonFile)
+      console.log(JSON.stringify(result, null, 2))
+    } else {
+      console.log('FAIL: ', jsonFile)
+    }
+  })
+}
+
+function main() {
+  const dir = './testfiles_json/'
+
+  // list all files in the directory
+  fs.readdir(dir, (err, files) => {
+    if (err) {
+      throw err
+    }
+
+    // files object contains all files names
+    // log them on console
+    files.forEach(file => {
+      execFile(dir + file)
+    })
+  })
+}
+
+execFile(process.argv[2])
+
+// main()
