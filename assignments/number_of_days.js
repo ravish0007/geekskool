@@ -1,5 +1,3 @@
-function numberOfDays(dd1, mm1, yy1, dd2, mm2, yy2) {
-
 
     let days_in_a_month = {
 
@@ -8,7 +6,7 @@ function numberOfDays(dd1, mm1, yy1, dd2, mm2, yy2) {
       03 : 31,
       04 : 30,
       05 : 31,
-      06 : 30,
+      06 : 30,  //TODO: convert to function
       07 : 31,
       08 : 31,
       09 : 30,
@@ -17,29 +15,31 @@ function numberOfDays(dd1, mm1, yy1, dd2, mm2, yy2) {
       12 : 31
 
     }
+// standard js  => research
 
+function isLeapYear(yy) {
 
-   function isLeapYear(yy) {
+  return ((yy%400 == 0) || (yy%4 == 0 && yy%100 != 0 ))   // already a boolean expression
 
-     return ((yy%400 == 0) || (yy%4 == 0 && yy%100 != 0 )) ? true : false;
+}
 
-   }
+function get_days(mm, yy) {
 
-   function get_days(mm, yy) {
+    return days_in_a_month[mm] +  ( mm == 2 && isLeapYear(yy) ? 1 : 0 ) ;
 
-     return days_in_a_month[mm] +  ( mm == 2 && isLeapYear(yy) ? 1 : 0 ) ;
+}
 
-   }
+function isValidDate(dd, mm, yy) {
 
-   function isValidDate(dd, mm, yy) {
+    if( (typeof dd != 'number') || (typeof mm != 'number') || (typeof yy != 'number') ) return false;
 
-     if( (typeof dd != 'number') || (typeof mm != 'number') || (typeof yy != 'number') ) return false;
+    if(mm < 0 || mm > 12) return false;
 
-     if(mm < 0 || mm > 12) return false;
+    return 1 <= dd && dd <= get_days(mm, yy) ? true : false;
 
-     return 1 <= dd && dd <= get_days(mm, yy) ? true : false;
+}
 
-   }
+function numberOfDays(dd1, mm1, yy1, dd2, mm2, yy2) {  // make it recursive
 
 
   if(!isValidDate(dd1, mm1, yy1) ||  !isValidDate(dd2, mm2, yy2)) return false;
